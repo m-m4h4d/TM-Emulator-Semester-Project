@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turing Machine Arithmetic Emulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            min-height: 100vh;
+        }
+        .tape-cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            transition: all 0.2s ease-in-out;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #1f2937;
+        }
+        .tape-cell.head {
+            border: 3px solid #ef4444; /* Red border for the head */
+            background-color: #fca5a5; /* Lighter red background */
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        .tape-container {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 1rem 0;
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+        }
+        .tape-row {
+            display: inline-flex;
+        }
+        /* Custom scrollbar for aesthetic */
+        .tape-container::-webkit-scrollbar { height: 8px; }
+        .tape-container::-webkit-scrollbar-thumb { background-color: #9ca3af; border-radius: 10px; }
+        .tape-container::-webkit-scrollbar-track { background-color: #f3f4f6; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-2">Turing Machine Arithmetic Emulator</h1>
+        <p class="text-gray-500 mb-8">TAFL Final Project: Visualizing Unary Addition, Subtraction, and Multiplication.</p>
+
+        <!-- Input and Control Area -->
+        <div class="bg-gray-50 p-6 rounded-lg mb-8 border border-gray-200">
+            <label for="inputExpression" class="block text-sm font-medium text-gray-700 mb-2">
+                Enter Unary Expression (e.g., <code class="bg-gray-200 p-1 rounded">111+11</code> or <code class="bg-gray-200 p-1 rounded">111-11</code> or <code class="bg-gray-200 p-1 rounded">11*11</code>):
+            </label>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" id="inputExpression" value="111+11" placeholder="e.g., 11+111"
+                    class="flex-grow border-gray-300 rounded-lg shadow-sm focus:border-red-500 focus:ring-red-500 p-3 text-lg transition duration-150">
+                <button id="runButton" onclick="runTM()"
+                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-[1.01] active:scale-[0.99] disabled:bg-gray-400">
+                    Run Emulator
+                </button>
+            </div>
+            <div class="mt-4 flex flex-col md:flex-row gap-4">
+                <button id="stepBackward" onclick="changeStep(-1)" disabled
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-150 disabled:opacity-50">
+                    &lt; Step Backward
+                </button>
+                <button id="stepForward" onclick="changeStep(1)" disabled
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-150 disabled:opacity-50">
+                    Step Forward &gt;
+                </button>
+            </div>
+        </div>
+
+        <!-- Output and Visualization Area -->
+        <div id="loadingIndicator" class="hidden text-center text-red-600 font-semibold my-4">
+            <div class="loader inline-block border-4 border-t-4 border-gray-200 border-t-red-500 rounded-full w-6 h-6 animate-spin"></div>
+            Running TM Core... Please Wait.
+        </div>
+        
+        <div id="visualizationArea" class="hidden">
+            <!-- Tape Visualization -->
+            <h3 class="text-xl font-semibold text-gray-900 mb-3">Tape Visualization (Step <span id="currentStep">0</span> of <span id="totalSteps">0</span>)</h3>
+            <div class="tape-container relative">
+                <div id="tapeDisplay" class="tape-row">
+                    <!-- Tape cells will be injected here -->
+                </div>
+            </div>
+
+            <!-- State Information -->
+            <div class="mt-6 p-4 bg-red-50 rounded-lg border border-red-200">
+                <p class="text-sm font-medium text-gray-700">Current State: <code id="currentState" class="font-mono text-red-600 font-bold">q0</code></p>
+            </div>
+            
+            <!-- Final Result -->
+            <div class="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                <p class="text-lg font-bold text-green-700">Final Result: <span id="finalResult" class="ml-2 text-2xl"></span></p>
+                <p class="text-sm text-gray-600 mt-1">Total steps: <span id="finalSteps"></span>. Final tape content is the count of leading '1's.</p>
+            </div>
+
+            <!-- Error/Message Box -->
+            <div id="messageBox" class="mt-6 p-4 bg-yellow-100 text-yellow-800 rounded-lg hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/tm_core'; // Vercel API path
+        let tmHistory = [];
+        let currentStepIndex = 0;
+
+        // --- Utility Functions ---
+
+        function showMessage(message, isError = false) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-yellow-100', 'text-yellow-800');
+            messageBox.classList.add(isError ? 'bg-red-100' : 'bg-yellow-100', isError ? 'text-red-800' : 'text-yellow-800');
+            if (message) {
+                messageBox.classList.remove('hidden');
+            } else {
+                messageBox.classList.add('hidden');
+            }
+        }
+        
+        function updateUIControls() {
+            document.getElementById('stepBackward').disabled = currentStepIndex <= 0;
+            document.getElementById('stepForward').disabled = currentStepIndex >= tmHistory.length - 1 || tmHistory.length === 0;
+        }
+
+        function renderTape(stepData) {
+            const tapeDisplay = document.getElementById('tapeDisplay');
+            tapeDisplay.innerHTML = ''; // Clear previous tape
+            
+            const tapeString = stepData.tape_display;
+            const headIndex = stepData.head_index;
+
+            for (let i = 0; i < tapeString.length; i++) {
+                const char = tapeString[i];
+                const cell = document.createElement('div');
+                cell.className = 'tape-cell ' + (char === '_' ? 'text-gray-400' : '');
+                
+                if (i === headIndex) {
+                    cell.classList.add('head');
+                }
+                
+                cell.textContent = char === '_' ? 'B' : char; // Use 'B' for Blank visualization
+                tapeDisplay.appendChild(cell);
+            }
+            
+            // Scroll to center the head
+            const headCell = tapeDisplay.querySelector('.tape-cell.head');
+            if (headCell) {
+                const container = document.querySelector('.tape-container');
+                container.scrollLeft = headCell.offsetLeft - (container.clientWidth / 2) + (headCell.offsetWidth / 2);
+            }
+
+            document.getElementById('currentState').textContent = stepData.state;
+            document.getElementById('currentStep').textContent = stepData.step;
+            document.getElementById('totalSteps').textContent = tmHistory[tmHistory.length - 1].step;
+            
+            updateUIControls();
+        }
+
+        // --- Core TM Logic ---
+
+        async function runTM() {
+            const inputExpression = document.getElementById('inputExpression').value.trim();
+            const runButton = document.getElementById('runButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const visualizationArea = document.getElementById('visualizationArea');
+
+            // Reset UI and state
+            tmHistory = [];
+            currentStepIndex = 0;
+            visualizationArea.classList.add('hidden');
+            showMessage(''); 
+            
+            if (!inputExpression.match(/^[1*+-]+$/)) {
+                showMessage('Invalid input. Use only \'1\', \'+\', \'-\', or \'*\' (e.g., 11+1).', true);
+                return;
+            }
+            
+            runButton.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+
+            try {
+                // The actual fetch to the Vercel Serverless Function (tm_core.py)
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: inputExpression })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    tmHistory = data.history;
+                    const finalResult = data.result;
+                    const totalSteps = tmHistory.length > 0 ? tmHistory[tmHistory.length - 1].step : 0;
+                    
+                    if (tmHistory.length > 0) {
+                        currentStepIndex = tmHistory.length - 1; // Start at the final step
+                        renderTape(tmHistory[currentStepIndex]);
+                        visualizationArea.classList.remove('hidden');
+
+                        document.getElementById('finalResult').textContent = finalResult || '0';
+                        document.getElementById('finalSteps').textContent = totalSteps;
+                    } else {
+                        showMessage('The machine halted immediately or took too many steps. Check input/rules.', true);
+                    }
+                } else {
+                    showMessage(`API Error: ${data.error || 'Unknown server error.'}`, true);
+                }
+
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                showMessage('Network or execution error: Could not connect to the TM Core API.', true);
+            } finally {
+                runButton.disabled = false;
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function changeStep(delta) {
+            const newIndex = currentStepIndex + delta;
+
+            if (newIndex >= 0 && newIndex < tmHistory.length) {
+                currentStepIndex = newIndex;
+                renderTape(tmHistory[currentStepIndex]);
+            }
+        }
+        
+        // Initialize with a default run state after the DOM loads
+        document.addEventListener('DOMContentLoaded', () => {
+             // You can uncomment the line below if you want the app to run immediately on load
+             // runTM();
+        });
+
+    </script>
+
+</body>
+</html>
