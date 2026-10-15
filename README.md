@@ -78,7 +78,7 @@ tests/test_api.py     API tests
 vercel.json           Vercel build and routing config
 ```
 
-`api/tm_machines.py` is a verbatim copy of `tm/machines.py` from the desktop emulator ([m-m4h4d/turing_emulator](https://github.com/m-m4h4d/turing_emulator)), which also has binary arithmetic and a tkinter GUI. Keep the two files identical.
+`api/tm_machines.py` is a verbatim copy of `tm/machines.py` from the desktop emulator ([m-m4h4d/turing_emulator](https://github.com/m-m4h4d/turing_emulator)), which also has binary arithmetic and a tkinter GUI. CI fails if the two files differ (the `engine-in-sync` job, which also runs daily), so change the engine in the desktop repo first, then copy it here unchanged.
 
 ### Running the Tests
 
@@ -86,4 +86,4 @@ vercel.json           Vercel build and routing config
 python -m unittest discover -s tests -v
 ```
 
-The tests also run on every push through GitHub Actions (`.github/workflows/tests.yml`).
+The tests and the engine sync check run on every push and pull request, and daily, through GitHub Actions (`.github/workflows/tests.yml`).
