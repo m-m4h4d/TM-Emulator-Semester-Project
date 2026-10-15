@@ -61,7 +61,7 @@ python dev_server.py        # then open http://127.0.0.1:8000/
 {
   "result": "11111",
   "steps_taken": 14,
-  "history": [{"state": "q0", "tape_display": "___111+11___", "head_index": 3, "step": 0}, "..."]
+  "history": [{"state": "q0", "tape_display": "____111+11____", "head_index": 4, "step": 0}, "..."]
 }
 ```
 
