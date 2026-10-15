@@ -9,12 +9,22 @@ sys.path.insert(0, os.path.join(ROOT, 'api'))
 from tm_core import handler  # noqa: E402
 
 
+# Static files routed explicitly in vercel.json; every other path gets index.html.
+STATIC = {
+    '/favicon.ico': 'image/x-icon',
+    '/favicon.png': 'image/png',
+    '/apple-touch-icon.png': 'image/png',
+}
+
+
 class DevHandler(handler):
     def do_GET(self):
-        with open(os.path.join(ROOT, 'index.html'), 'rb') as f:
+        path = self.path.split('?')[0]
+        name, content_type = (path[1:], STATIC[path]) if path in STATIC else ('index.html', 'text/html; charset=utf-8')
+        with open(os.path.join(ROOT, name), 'rb') as f:
             body = f.read()
         self.send_response(200)
-        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
