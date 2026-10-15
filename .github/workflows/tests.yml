@@ -3,6 +3,10 @@ name: Tests
 on:
   push:
   pull_request:
+  schedule:
+    # Daily, so a change to the desktop repo's engine is caught even without a push here.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
 
 jobs:
   test:
@@ -14,3 +18,19 @@ jobs:
           python-version: "3.12"
       - name: Run API tests
         run: python -m unittest discover -s tests -v
+
+  engine-in-sync:
+    # api/tm_machines.py must be a verbatim copy of tm/machines.py in the desktop repo.
+    # Change the engine there first, then copy it here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare with m-m4h4d/turing_emulator master
+        run: |
+          curl -sSfL --retry 3 -o upstream_machines.py \
+            https://raw.githubusercontent.com/m-m4h4d/turing_emulator/master/tm/machines.py
+          if ! diff -u upstream_machines.py api/tm_machines.py; then
+            echo "::error file=api/tm_machines.py::Differs from tm/machines.py in m-m4h4d/turing_emulator (master). Copy that file here unchanged."
+            exit 1
+          fi
+          echo "api/tm_machines.py matches m-m4h4d/turing_emulator master."
