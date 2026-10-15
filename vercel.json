@@ -6,6 +6,18 @@
       "use": "@vercel/static"
     },
     {
+      "src": "favicon.ico",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "favicon.png",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "use": "@vercel/static"
+    },
+    {
       "src": "api/tm_core.py",
       "use": "@vercel/python"
     }
@@ -14,6 +26,10 @@
     {
       "src": "/api/tm_core",
       "dest": "api/tm_core.py"
+    },
+    {
+      "src": "/(favicon\\.ico|favicon\\.png|apple-touch-icon\\.png)",
+      "dest": "/$1"
     },
     {
       "src": "/(.*)",

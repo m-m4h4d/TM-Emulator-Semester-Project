@@ -75,6 +75,8 @@ api/tm_core.py        Vercel serverless function (BaseHTTPRequestHandler named `
 api/tm_machines.py    the Turing machines as transition tables, and the interpreter
 dev_server.py         local server for development
 tests/test_api.py     API tests
+tests/test_static.py  checks the favicon files are built and routed
+favicon.ico, favicon.png, apple-touch-icon.png   site icons (same artwork as the desktop emulator's landing page)
 vercel.json           Vercel build and routing config
 ```
 
